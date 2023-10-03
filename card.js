@@ -18,14 +18,13 @@ class WaterParamStatsCard extends LitElement {
            <ha-card header="${this.config.title}">
              <div class="card-content">
                <table style='width: 100%'>
-                 ${
-                     this.config.stats.map((stat) => {
-                        return html`<tr>
-                                      <td class='td-field ${stat.readonly?`readonly`:``}'>${stat.title}</td>
-                                      <td class='td-value ${stat.readonly?`readonly`:``}'>${stat.value}</td>
+                 ${this.config.stats.map((stat) => {
+            return html`<tr>
+                                      <td class='td-field ${stat.readonly ? `readonly` : ``}'>${stat.title}</td>
+                                      <td class='td-value ${stat.readonly ? `readonly` : ``}'>${stat.value}</td>
                                    </tr>`
-                     })
-                 }
+        })
+            }
                  <tr>
                    <td colspan=2>
                      <div class='chart-container'>
@@ -33,6 +32,11 @@ class WaterParamStatsCard extends LitElement {
                        <iframe class="chart-frame chart-frame-second" src="${this.config.charts.timeseries}"></iframe>
                      </div>
                    </td>
+                 </tr>
+                 <tr>
+                    <td colspan=2 style='text-align: right;'>
+                      <button class="flat-button">Record New Value</button>
+                    </td>
                  </tr>
                </table>
              </div>
@@ -79,6 +83,33 @@ class WaterParamStatsCard extends LitElement {
           .chart-frame-second {
             flex: 3; 
             width: 60%;
+          }
+
+          button, .flat-button {
+            background-color: transparent;
+            border: none;
+            padding: 0;
+            margin: 5px 0px 0px 0px;
+            cursor: pointer;
+          }
+          
+          .flat-button {
+            display: inline-block;
+            background-color: #3498db;
+            color: #fff;
+            border: 2px solid #3498db;
+            padding: 5px 10px;
+            text-align: center;
+            text-decoration: none;
+            font-size: 12px;
+            border-radius: 0px;
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+          }
+          
+          .flat-button:hover {
+            background-color: #2980b9;
+            border-color: #2980b9;
+            color: #fff;
           }
         `;
     }
