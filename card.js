@@ -10,8 +10,15 @@ class WaterParamStatsCard extends LitElement {
             hass: undefined,
             config: undefined,
             stateObj: undefined,
-            popup: false
+            popup: false,
+            newValue: undefined,
+            originalValue: undefined
         };
+    }
+
+    // required
+    setConfig(config) {
+        this.config = config;
     }
 
     openPopup() {
@@ -19,7 +26,46 @@ class WaterParamStatsCard extends LitElement {
     }
 
     cancelPopup() {
+        this.newValue = this.originalValue;
         this.popup = false;
+    }
+
+    getStep() {
+        return parseFloat(this.hass.states["input_number.calcium_reading"].attributes.step || 1);
+    }
+
+    newValueIncrement() {
+        console.log("Incrementing " + this.newValue);
+        this.setNewValue(this.newValue + this.getStep());
+    }
+
+    newValueDecrement() {
+        console.log("Decrementing " + this.newValue);        
+        this.setNewValue(this.newValue - this.getStep());
+    }
+
+    get value() {
+        return this.newValue;
+    }
+
+    set value(value) {
+        const oldValue = this.value;
+        this.newValue = value;
+        this.requestUpdate('value', oldValue);
+    }
+
+    newValueChange(e) {
+        this.newValue = e.target.value;
+    }
+
+    setNewValue(newVal) {
+        this.newValue = newVal;
+        this.requestUpdate('value', this.newValue);
+    }
+
+    onNewValueChange(e) {
+        console.log("onNewValueChange to " + e.target.value);
+        this.newValue = parseFloat(e.target.value);
     }
 
     async submitReading() {
@@ -34,10 +80,36 @@ class WaterParamStatsCard extends LitElement {
         this.popup = false;
     }
 
+    getPopupWindow() {
+        const _newvalue = this.config.new_value || false;
+        if (_newvalue) {
+            return html`<tr>
+                           <td colspan=2 style='text-align: right;'>
+                             <button class="flat-button" @click="${this.openPopup}">Record New Value</button>
+                             <div class="overlay"></div>
+                             <ha-card class="popup">
+                               <div class="input-row">
+                                 <label for="value">New ${this.config.title} Reading:</label>
+                                 <button class="control-button" @click="${this.newValueDecrement}"><ha-icon icon="mdi:minus"></ha-icon></button>
+                                 <input type="number" class="value-input" step="0.01" value='${this.value}' @change=${this.onNewValueChange}/>
+                                 <button class="control-button" @click="${this.newValueIncrement}"><ha-icon icon="mdi:plus"></ha-icon></button>
+                                 <span id="unit">ppm</span>
+                               </div>
+                               <div class="button-container">
+                                 <button class="flat-button flat-button-secondary" @click="${this.cancelPopup}">Cancel</button>
+                                 <button class="flat-button" @click="${this.submitReading}">Record New Value</button>
+                               </div>
+                             </ha-card>
+                           </td>
+                        </tr>`;
+        }
+
+        return html``;
+    }
+
     render() {
         const _title = this.config.title || "Water Parameter";
-        const _newvalue = this.config.new_value || false;
-
+        
         return html`
            <ha-card header="${_title}">
              <div class="card-content">
@@ -59,24 +131,8 @@ class WaterParamStatsCard extends LitElement {
                      </div>
                    </td>
                  </tr>
-                 <tr>
-                    <td colspan=2 style='text-align: right;'>
-                      <button class="flat-button" @click="${this.openPopup}">Record New Value</button>
-                    </td>
-                 </tr>
-               </table>
-               <div class="overlay"></div>
-               <ha-card class="popup">
-                 <div class="input-row">
-                    <label for="value">New Calcium Reading:</label>
-                    <input type="number" class="value-input" placeholder="Value" step="0.01" value='5'>
-                    <span id="unit">ppm</span>
-                 </div>
-                 <div class="button-container">
-                   <button class="flat-button flat-button-secondary" @click="${this.cancelPopup}">Cancel</button>
-                   <button class="flat-button" @click="${this.submitReading}">Record New Value</button>
-                 </div>
-               </ha-card>
+                 ${this.getPopupWindow() }                 
+               </table>               
              </div>
            </ha-card>
          `;
@@ -92,10 +148,31 @@ class WaterParamStatsCard extends LitElement {
                 this.shadowRoot.querySelector('.popup').style.display = 'none';
             }
         }
+        else if (changedProperties.has('hass')) {
+            this.newValue = parseFloat(this.hass.states["input_number.calcium_reading"].state);
+            this.originalValue = this.newValue;
+        }
     }
 
     static get styles() {
         return css`
+          .control-button {
+            display: inline-block;
+            text-align: center;
+            text-decoration: none;
+            font-size: 12px;
+            border-radius: 0px;
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+            cursor: pointer;
+            background-color: #262626;
+            border: 0px solid #ccc;
+            height: 38px;
+          }
+          .input-container {
+            display: flex;
+            align-items: center;
+          }
+
           table {
             width: 100%;
             border-collapse: collapse;
@@ -144,14 +221,6 @@ class WaterParamStatsCard extends LitElement {
             margin-left: 10px;
           }
 
-          button, .flat-button {
-            background-color: transparent;
-            border: none;
-            padding: 0;
-            margin: 5px 0px 0px 0px;
-            cursor: pointer;
-          }
-          
           .flat-button {
             display: inline-block;
             background-color: #3498db;
@@ -163,6 +232,8 @@ class WaterParamStatsCard extends LitElement {
             font-size: 12px;
             border-radius: 0px;
             transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+            margin: 5px 0px 0px 0px;
+            cursor: pointer;
           }
 
           .flat-button-secondary {
@@ -211,51 +282,56 @@ class WaterParamStatsCard extends LitElement {
               justify-content: flex-end;
               align-items: center;
               margin-bottom: 20px;
-            }
+          }
 
-            .name-input {
-              padding: 10px;
-              width: 45%; /* Adjust the width as needed */
-              border: 1px solid #ccc;
-              border-radius: 5px;
-              font-size: 16px;
-            }
+          .input-row label {
+            margin-right: 10px;
+          }
 
-            .value-input {
-              padding: 5px;
-              width: 25%;
-              border: 1px solid #ccc;
-              border-radius: 0px;
-              font-size: 16px;
-              outline: none;
-              text-align: right;
-              margin-left: 50px;
-              margin-right: 10px;
-            }
+          .input-row span {
+            margin-left: 10px;
+          }
 
-            .value-input::placeholder {
-              color: #ccc;
-            }
+          .name-input {
+            padding: 10px;
+            width: 45%; /* Adjust the width as needed */
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+          }
 
-            .value-input[type="number"] {
-              appearance: none;
-              -moz-appearance: textfield;
-              -webkit-appearance: none;
-            }
+          .value-input {
+            padding: 5px;
+            width: 25%;
+            border: 0px solid #ccc;
+            border-radius: 0px;
+            font-size: 16px;
+            outline: none;
+            text-align: right;
+            background-color: #262626;
+            height: 28px;
+            font-weight: bold;
+            color: var(--text-color);
+          }
 
-            .value-input[type="number"]::-webkit-inner-spin-button,
-            .value-input[type="number"]::-webkit-outer-spin-button {
-              appearance: none;
-              -moz-appearance: none;
-              -webkit-appearance: none;
-              margin: 0;
-            }
+          .value-input::placeholder {
+            color: #ccc;
+          }
+
+          .value-input[type="number"] {
+            appearance: none;
+            -moz-appearance: textfield;
+            -webkit-appearance: none;
+          }
+
+          .value-input[type="number"]::-webkit-inner-spin-button,
+          .value-input[type="number"]::-webkit-outer-spin-button {
+            appearance: none;
+            -moz-appearance: none;
+            -webkit-appearance: none;
+            margin: 0;
+          }
         `;
-    }
-
-    // required
-    setConfig(config) {
-        this.config = config;
     }
 }
 
