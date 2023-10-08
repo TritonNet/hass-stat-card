@@ -5,6 +5,118 @@ import {
 } from "https://unpkg.com/lit-element@2.0.1/lit-element.js?module";
 import { until } from 'https://unpkg.com/lit-html@2.0.1/directives/until.js';
 
+class NumbericTextBox extends LitElement {
+    static get properties() {
+        return {
+            label: undefined,
+            value: undefined,
+            step: undefined,
+            min: undefined,
+            max: undefined,
+            uom: undefined
+        }
+    }
+
+    decrement() {
+        this.value = parseFloat(this.value) - parseFloat(this.step);
+        this.notifyValueChanged();
+    }
+
+    increment() {
+        this.value = parseFloat(this.value) + parseFloat(this.step);
+        this.notifyValueChanged();
+    }
+
+    onChange(e) {
+        this.value = e.target.value;
+        this.notifyValueChanged();
+    }
+
+    notifyValueChanged() {
+        this.dispatchEvent(new CustomEvent('value-changed', {
+            detail: this.value
+        }));
+    }
+
+    render() {
+        return html`
+                  <div class="input-row">
+                     <label for="value">New ${this.label} Reading:</label>
+                     <button class="control-button" @click="${this.decrement}"><ha-icon icon="mdi:minus"></ha-icon></button>
+                     <input type="number" class="value-input" step="${this.step}" .value='${this.value}' @input="${this.onChange}"/>
+                     <button class="control-button" @click="${this.increment}"><ha-icon icon="mdi:plus"></ha-icon></button>
+                     <span id="unit">${this.uom}</span>
+                  </div>`;
+    }
+
+    static get styles() {
+        return css`
+           .control-button {
+               display: inline-block;
+               text-align: center;
+               text-decoration: none;
+               font-size: 12px;
+               border-radius: 0px;
+               transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+               cursor: pointer;
+               background-color: #262626;
+               border: 0px solid #ccc;
+               height: 38px;
+           }
+
+           .input-row {
+                 display: flex;
+                 justify-content: flex-end;
+                 align-items: center;
+                 margin-bottom: 20px;
+                 margin-left: 35px;
+           }
+           
+           .input-row label {
+               margin-right: 10px;
+           }
+           
+           .input-row span {
+               margin-left: 10px;
+           }
+
+           .value-input {
+             padding: 5px;
+             width: 50px;
+             border: 0px solid #ccc;
+             border-radius: 0px;
+             font-size: 16px;
+             outline: none;
+             text-align: right;
+             background-color: #262626;
+             height: 28px;
+             font-weight: bold;
+             color: var(--text-color);
+           }
+           
+           .value-input::placeholder {
+             color: #ccc;
+           }
+           
+           .value-input[type="number"] {
+             appearance: none;
+             -moz-appearance: textfield;
+             -webkit-appearance: none;
+           }
+           
+           .value-input[type="number"]::-webkit-inner-spin-button,
+           .value-input[type="number"]::-webkit-outer-spin-button {
+             appearance: none;
+             -moz-appearance: none;
+             -webkit-appearance: none;
+             margin: 0;
+           }
+        `;
+    }
+}
+
+customElements.define('numeric-textbox', NumbericTextBox);
+
 class WaterParamStatsCard extends LitElement {
     static get properties() {
         return {
@@ -38,12 +150,21 @@ class WaterParamStatsCard extends LitElement {
 
     updated(changedProperties) {
         if (changedProperties.has('popup')) {
+            let _overlay = this.shadowRoot.querySelector('.overlay');
+            let _popup = this.shadowRoot.querySelector('.popup');
+
             if (this.popup) {
-                this.shadowRoot.querySelector('.overlay').style.display = 'block';
-                this.shadowRoot.querySelector('.popup').style.display = 'block';
+                if (_overlay != undefined)
+                    _overlay.style.display = 'block';
+
+                if (_popup != undefined)
+                    _popup.style.display = 'block';
             } else {
-                this.shadowRoot.querySelector('.overlay').style.display = 'none';
-                this.shadowRoot.querySelector('.popup').style.display = 'none';
+                if (_overlay != undefined)
+                    _overlay.style.display = 'none';
+
+                if (_popup != undefined)
+                    _popup.style.display = 'none';
             }
         }
         else if (changedProperties.has('hass')) {
@@ -66,46 +187,8 @@ class WaterParamStatsCard extends LitElement {
         this.popup = false;
     }
 
-    getStep() {
-        return parseFloat(this.hass.states[this.newEntryEntityId].attributes.step || 1);
-    }
-
-    newValueIncrement() {
-        this.setNewValue(this.newEntryCurrentValue + this.getStep());
-    }
-
-    newValueDecrement() {
-        this.setNewValue(this.newEntryCurrentValue - this.getStep());
-    }
-
-    get value() {
-        if (this.newEntry == undefined || !this.newEntryEnabled)
-            return 0;
-
-        return this.newEntryCurrentValue;
-    }
-
-    set value(value) {
-        const oldValue = this.value;
-        this.newEntryCurrentValue = value;
-        this.requestUpdate('value', oldValue);
-    }
-
     isTemplate(value) {
         return value?.includes("{{");
-    }
-
-    newValueChange(e) {
-        this.newEntryCurrentValue = e.target.value;
-    }
-
-    setNewValue(newVal) {
-        this.newEntryCurrentValue = newVal;
-        this.requestUpdate('value', this.newEntryCurrentValue);
-    }
-
-    onNewValueChange(e) {
-        this.newEntryCurrentValue = parseFloat(e.target.value);
     }
 
     async submitReading() {
@@ -120,6 +203,10 @@ class WaterParamStatsCard extends LitElement {
         this.popup = false;
     }
 
+    newEntryValueChanged(e) {
+        this.newEntryCurrentValue = e.detail;
+    }
+
     getPopupWindow() {
         if (this.newEntryEnabled) {
             const _newEntry = this.config.new_entry;
@@ -128,19 +215,16 @@ class WaterParamStatsCard extends LitElement {
             const _submitText = _newEntry.submit_text || "Record New Value"
             const _cancelText = _newEntry.cancel_text || "Cancel";
             const _uom = this.hass.states[this.newEntryEntityId].attributes.unit_of_measurement || "";
+            const _step = this.hass.states[this.newEntryEntityId].attributes.step || 1;
+            const _min = this.hass.states[this.newEntryEntityId].attributes.min || 0;
+            const _max = this.hass.states[this.newEntryEntityId].attributes.min || 100;
 
             return html`<tr>
                            <td colspan=2 style='text-align: right;'>
                              <button class="flat-button" @click="${this.openPopup}">${_buttonText}</button>
                              <div class="overlay"></div>
                              <ha-card class="popup">
-                               <div class="input-row">
-                                 <label for="value">New ${this.config.title} Reading:</label>
-                                 <button class="control-button" @click="${this.newValueDecrement}"><ha-icon icon="mdi:minus"></ha-icon></button>
-                                 <input type="number" class="value-input" step="${this.getStep() }" .value='${this.value}' @change=${this.onNewValueChange}/>
-                                 <button class="control-button" @click="${this.newValueIncrement}"><ha-icon icon="mdi:plus"></ha-icon></button>
-                                 <span id="unit">${_uom}</span>
-                               </div>
+                               <numeric-textbox uom="${_uom}" label="${this.config.title}" min="${_min}" max="${_max}" value="${this.newEntryCurrentValue}" step="${_step}" @value-changed="${this.newEntryValueChanged}"></numeric-textbox>
                                <div class="button-container">
                                  <button class="flat-button flat-button-secondary" @click="${this.cancelPopup}">${_cancelText}</button>
                                  <button class="flat-button" @click="${this.submitReading}">${_submitText}</button>
@@ -216,7 +300,7 @@ class WaterParamStatsCard extends LitElement {
                    <td colspan=2>
                      <div class='chart-container'>
                        <iframe class="chart-frame chart-frame-first" src="${this.config.charts.guage}"></iframe>
-                       <iframe class="chart-frame chart-frame-second" src="${this.config.charts.timeseries}"></iframe>
+                       <iframe class="chart-frame chart-frame-second" src="${this.config.charts.timeseries}"></iframe>                       
                      </div>
                    </td>
                  </tr>
@@ -242,24 +326,14 @@ class WaterParamStatsCard extends LitElement {
             this.html = await this.getHtmlAsync();
 
         this.requestUpdate();
+        this.requestUpdate('value', this.newEntryOriginalValue);
     }
 
     render() { return this.html; }
 
     static get styles() {
         return css`
-          .control-button {
-            display: inline-block;
-            text-align: center;
-            text-decoration: none;
-            font-size: 12px;
-            border-radius: 0px;
-            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
-            cursor: pointer;
-            background-color: #262626;
-            border: 0px solid #ccc;
-            height: 38px;
-          }
+          
           .input-container {
             display: flex;
             align-items: center;
@@ -367,63 +441,7 @@ class WaterParamStatsCard extends LitElement {
             z-index: 1000;
             backdrop-filter: blur(5px);
             pointer-events: none;
-          }
-
-          .input-row {
-              display: flex;
-              justify-content: flex-end;
-              align-items: center;
-              margin-bottom: 20px;
-              margin-left: 35px;
-          }
-
-          .input-row label {
-            margin-right: 10px;
-          }
-
-          .input-row span {
-            margin-left: 10px;
-          }
-
-          .name-input {
-            padding: 10px;
-            width: 45%; /* Adjust the width as needed */
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 16px;
-          }
-
-          .value-input {
-            padding: 5px;
-            width: 50px;
-            border: 0px solid #ccc;
-            border-radius: 0px;
-            font-size: 16px;
-            outline: none;
-            text-align: right;
-            background-color: #262626;
-            height: 28px;
-            font-weight: bold;
-            color: var(--text-color);
-          }
-
-          .value-input::placeholder {
-            color: #ccc;
-          }
-
-          .value-input[type="number"] {
-            appearance: none;
-            -moz-appearance: textfield;
-            -webkit-appearance: none;
-          }
-
-          .value-input[type="number"]::-webkit-inner-spin-button,
-          .value-input[type="number"]::-webkit-outer-spin-button {
-            appearance: none;
-            -moz-appearance: none;
-            -webkit-appearance: none;
-            margin: 0;
-          }
+          }        
         `;
     }
 }
