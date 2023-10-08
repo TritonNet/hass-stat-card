@@ -17,18 +17,34 @@ class NumbericTextBox extends LitElement {
         }
     }
 
-    decrement() {
-        this.value = parseFloat(this.value) - parseFloat(this.step);
-        this.notifyValueChanged();
+    numDecimals() {
+        if (this.step === undefined || this.step.toString().indexOf(".") < 0)
+            return 0;
+
+        return this.step.toString().split('.')[1].length;
     }
 
-    increment() {
-        this.value = parseFloat(this.value) + parseFloat(this.step);
-        this.notifyValueChanged();
+    round(n, dp) {
+        const h = +('1'.padEnd(dp + 1, '0')) // 10 or 100 or 1000 or etc
+        return Math.round(n * h) / h
     }
 
-    onChange(e) {
-        this.value = e.target.value;
+    decrement() { this.set(parseFloat(this.value) - parseFloat(this.step)); }
+
+    increment() { this.set(parseFloat(this.value) + parseFloat(this.step)); }
+
+    onChange(e) { this.set(e.target.value); }
+
+    set(val) {
+        this.value = this.round(val, this.numDecimals());
+        const _max = parseFloat(this.max);
+        const _min = parseFloat(this.min);
+
+        if (this.value > _max)
+            this.value = _max;
+        else if (this.value < _min)
+            this.value = _min;
+
         this.notifyValueChanged();
     }
 
@@ -41,7 +57,7 @@ class NumbericTextBox extends LitElement {
     render() {
         return html`
                   <div class="input-row">
-                     <label for="value">New ${this.label} Reading:</label>
+                     <label for="value">${this.label}</label>
                      <button class="control-button" @click="${this.decrement}"><ha-icon icon="mdi:minus"></ha-icon></button>
                      <input type="number" class="value-input" step="${this.step}" .value='${this.value}' @input="${this.onChange}"/>
                      <button class="control-button" @click="${this.increment}"><ha-icon icon="mdi:plus"></ha-icon></button>
@@ -153,19 +169,13 @@ class WaterParamStatsCard extends LitElement {
             let _overlay = this.shadowRoot.querySelector('.overlay');
             let _popup = this.shadowRoot.querySelector('.popup');
 
-            if (this.popup) {
-                if (_overlay != undefined)
-                    _overlay.style.display = 'block';
+            let _display = this.popup ? 'block' : 'none';
 
-                if (_popup != undefined)
-                    _popup.style.display = 'block';
-            } else {
-                if (_overlay != undefined)
-                    _overlay.style.display = 'none';
+            if (_overlay != undefined)
+                _overlay.style.display = _display;
 
-                if (_popup != undefined)
-                    _popup.style.display = 'none';
-            }
+            if (_popup != undefined)
+                _popup.style.display = _display;
         }
         else if (changedProperties.has('hass')) {
 
@@ -214,17 +224,19 @@ class WaterParamStatsCard extends LitElement {
             const _buttonText = _newEntry.button_text || "Record New Value"
             const _submitText = _newEntry.submit_text || "Record New Value"
             const _cancelText = _newEntry.cancel_text || "Cancel";
+            const _label = _newEntry.label || this.hass.states[this.newEntryEntityId].attributes.friendly_name;
+
             const _uom = this.hass.states[this.newEntryEntityId].attributes.unit_of_measurement || "";
             const _step = this.hass.states[this.newEntryEntityId].attributes.step || 1;
             const _min = this.hass.states[this.newEntryEntityId].attributes.min || 0;
-            const _max = this.hass.states[this.newEntryEntityId].attributes.min || 100;
-
+            const _max = this.hass.states[this.newEntryEntityId].attributes.max || 100;
+            
             return html`<tr>
                            <td colspan=2 style='text-align: right;'>
                              <button class="flat-button" @click="${this.openPopup}">${_buttonText}</button>
                              <div class="overlay"></div>
                              <ha-card class="popup">
-                               <numeric-textbox uom="${_uom}" label="${this.config.title}" min="${_min}" max="${_max}" value="${this.newEntryCurrentValue}" step="${_step}" @value-changed="${this.newEntryValueChanged}"></numeric-textbox>
+                               <numeric-textbox uom="${_uom}" label="${_label}:" min="${_min}" max="${_max}" value="${this.newEntryCurrentValue}" step="${_step}" @value-changed="${this.newEntryValueChanged}"></numeric-textbox>
                                <div class="button-container">
                                  <button class="flat-button flat-button-secondary" @click="${this.cancelPopup}">${_cancelText}</button>
                                  <button class="flat-button" @click="${this.submitReading}">${_submitText}</button>
