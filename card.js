@@ -144,9 +144,23 @@ class WaterParamStatsCard extends LitElement {
             newEntryEntityId: undefined,
             newEntryOriginalValue: undefined,
             newEntryCurrentValue: undefined,
-            html: undefined
+            html: undefined,
+            trackingEntities: undefined
         };
     }
+
+    extractEntities(template) {
+        const regex = /(?:states|state_attr|is_state|is_state_attr)\(['"]([^'"]+)['"]/g;
+        const parameterNames = [];
+        let match;
+    
+        while ((match = regex.exec(template)) !== null) {
+            parameterNames.push(match[1]);
+        }
+    
+        return parameterNames;
+    }
+
 
     // required
     setConfig(config) {
@@ -156,10 +170,26 @@ class WaterParamStatsCard extends LitElement {
         if (this.newEntry === undefined)
             this.newEntry = {};
 
+        if (this.trackingEntities === undefined)
+            this.trackingEntities = {};
+
+        if (this.config.stats != undefined) {
+            for (var idx = 0; idx < this.config.stats.length; idx++) {                
+                if (this.isTemplate(this.config.stats[idx].value)) {
+                    const entities = this.extractEntities(this.config.stats[idx].value);
+                    for (var n = 0; n < entities.length; n++) {
+                        const entity = entities[n];
+                        this.trackingEntities[entity] = this.trackingEntities[entity];
+					}
+                }
+            }
+        }
+
         const _newEntry = this.config.new_entry;
         this.newEntryEnabled = _newEntry?.enabled || false;
         if (this.newEntryEnabled) {
             this.newEntryEntityId = _newEntry.entity;
+            this.trackingEntities[this.newEntryEntityId] = this.trackingEntities[this.newEntryEntityId];
         }
 
         this.renderHtmlAsync();
@@ -187,8 +217,26 @@ class WaterParamStatsCard extends LitElement {
                 this.newEntryOriginalValue = this.newEntryCurrentValue;
             }
 
-            this.renderHtmlAsync();
+            if (this.hasTrackingEntityChanged()) {
+                this.renderHtmlAsync();
+            }
         }
+    }
+
+    hasTrackingEntityChanged() {
+        if (this.trackingEntities === undefined)
+            return false;
+
+        let _stateChanged = false;
+        for (var entity in this.trackingEntities) {
+            const jstate = JSON.stringify(this.hass.states[entity]);
+            if (this.trackingEntities[entity] != jstate) {
+                this.trackingEntities[entity] = jstate;
+                _stateChanged = true;
+            }
+        }
+
+        return _stateChanged;
     }
 
     openPopup() {
