@@ -278,44 +278,73 @@ class WaterParamStatsCard extends LitElement {
     async getHtmlAsync() {
         const _title = this.config.title || "Water Parameter";
         let _statsHtml = html``;
+        
+        if (this.config.stats != undefined)
+        {
+            for (var idx = 0; idx < this.config.stats.length; idx++) {
+                const stat = this.config.stats[idx];
+                const _readonly = stat.readonly || false;
 
-        for (var idx = 0; idx < this.config.stats.length; idx++) {
-            const stat = this.config.stats[idx];
-            const _readonly = stat.readonly || false;
+                this._value = stat.value;
 
-            this._value = stat.value;
+                if (this.isTemplate(this._value)) {
+                    this.ready = false;
 
-            if (this.isTemplate(this._value)) {
-                this.ready = false;
+                    await this.hass.connection.subscribeMessage((msg) => {
+                        this._value = msg.result;
+                        this.ready = true;
+                    }, { type: "render_template", template: this._value });
 
-                await this.hass.connection.subscribeMessage((msg) => {
-                    this._value = msg.result;
-                    this.ready = true;
-                }, { type: "render_template", template: this._value });
+                    await this.waitUntil(() => this.ready === true);
+                }
 
-                await this.waitUntil(() => this.ready === true);
-            }
-
-            _statsHtml = html`${_statsHtml}
+                _statsHtml = html`${_statsHtml}
                         <tr>
                            <td class='td-field ${_readonly ? `readonly` : ``}'>${stat.title}</td>
                            <td class='td-value ${_readonly ? `readonly` : ``}'>${this._value}</td>
                         </tr>`;
-		}
+            }
+        }
+
+        let _chartsHtml = html``;
+        if (this.config.charts != undefined) {
+            let hasChart = false;
+            let _guageChartHtml = html``;
+            if (this.config.charts.guage != undefined) {
+                _guageChartHtml = html`
+                  <iframe class="chart-frame chart-frame-first" src="${this.config.charts.guage}"></iframe>
+                `;
+                hasChart = true;
+            }
+
+            let _timeSeriesChartHtml = html``;
+            if (this.config.charts.timeseries != undefined) {
+                _timeSeriesChartHtml = html`
+                  <iframe class="chart-frame chart-frame-second" src="${this.config.charts.timeseries}"></iframe>
+                `;
+                hasChart = true;
+            }
+
+            if (hasChart) {
+                _chartsHtml = html`
+                <tr>
+                   <td colspan=2>
+                     <div class='chart-container'>
+                       ${_guageChartHtml}
+                       ${_timeSeriesChartHtml}
+                     </div>
+                   </td>
+                 </tr>
+                `;
+            }
+        }
 
         return html`
            <ha-card header="${_title}">
              <div class="card-content">
                <table style='width: 100%'>
                  ${_statsHtml}
-                 <tr>
-                   <td colspan=2>
-                     <div class='chart-container'>
-                       <iframe class="chart-frame chart-frame-first" src="${this.config.charts.guage}"></iframe>
-                       <iframe class="chart-frame chart-frame-second" src="${this.config.charts.timeseries}"></iframe>                       
-                     </div>
-                   </td>
-                 </tr>
+                 ${_chartsHtml}
                  ${this.getPopupWindow()}                 
                </table>               
              </div>
