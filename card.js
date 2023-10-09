@@ -150,6 +150,7 @@ class WaterParamStatsCard extends LitElement {
 
     // required
     setConfig(config) {
+        console.debug("New config");
         this.config = config;
 
         if (this.newEntry === undefined)
@@ -165,6 +166,8 @@ class WaterParamStatsCard extends LitElement {
     }
 
     updated(changedProperties) {
+        console.debug("properties updated: " + [...changedProperties].map(([k, v]) => `'${k}'=> '${v}'`).join(", "));
+
         if (changedProperties.has('popup')) {
             let _overlay = this.shadowRoot.querySelector('.overlay');
             let _popup = this.shadowRoot.querySelector('.popup');
