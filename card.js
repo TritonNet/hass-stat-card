@@ -3,7 +3,6 @@ import {
     html,
     css,
 } from "https://unpkg.com/lit-element@2.0.1/lit-element.js?module";
-import { until } from 'https://unpkg.com/lit-html@2.0.1/directives/until.js';
 
 class NumbericTextBox extends LitElement {
     static get properties() {
@@ -134,6 +133,17 @@ class NumbericTextBox extends LitElement {
 customElements.define('numeric-textbox', NumbericTextBox);
 
 class WaterParamStatsCard extends LitElement {
+
+    /*
+      trackingEntities = {
+         entity_id: "json state of the entity"
+      }
+
+      trackingEntityFields = {
+        "field_value"
+      }
+    */
+
     static get properties() {
         return {
             hass: undefined,
@@ -145,9 +155,22 @@ class WaterParamStatsCard extends LitElement {
             newEntryOriginalValue: undefined,
             newEntryCurrentValue: undefined,
             html: undefined,
-            trackingEntities: undefined
+            trackingEntities: undefined,
+            trackingEntityFields: undefined,
+            configChangedApplied: false
         };
     }
+
+    constructor() {
+        // always call super() first
+        super();
+
+        this.newEntry = {};
+        this.trackingEntities = {};
+        this.trackingEntityFields = {};
+        this.configChangedApplied = false;
+    }
+
 
     extractEntities(template) {
         const regex = /(?:states|state_attr|is_state|is_state_attr)\(['"]([^'"]+)['"]/g;
@@ -164,23 +187,19 @@ class WaterParamStatsCard extends LitElement {
 
     // required
     setConfig(config) {
-        console.debug("New config");
         this.config = config;
 
-        if (this.newEntry === undefined)
-            this.newEntry = {};
-
-        if (this.trackingEntities === undefined)
-            this.trackingEntities = {};
-
         if (this.config.stats != undefined) {
-            for (var idx = 0; idx < this.config.stats.length; idx++) {                
-                if (this.isTemplate(this.config.stats[idx].value)) {
-                    const entities = this.extractEntities(this.config.stats[idx].value);
+            for (var idx = 0; idx < this.config.stats.length; idx++) {
+                const fieldValue = this.config.stats[idx].value;
+                if (this.isTemplateValue(fieldValue)) {
+                    const entities = this.extractEntities(fieldValue);
                     for (var n = 0; n < entities.length; n++) {
-                        const entity = entities[n];
-                        this.trackingEntities[entity] = this.trackingEntities[entity];
-					}
+                        const entityid = entities[n];
+                        this.trackingEntities[entityid] = this.trackingEntities[entityid];                        
+                    }
+                    this.trackingEntityFields[fieldValue] = this.trackingEntityFields[fieldValue] || {};
+                    this.trackingEntityFields[fieldValue]["field_" + idx] = "template";
                 }
             }
         }
@@ -190,14 +209,15 @@ class WaterParamStatsCard extends LitElement {
         if (this.newEntryEnabled) {
             this.newEntryEntityId = _newEntry.entity;
             this.trackingEntities[this.newEntryEntityId] = this.trackingEntities[this.newEntryEntityId];
+            this.trackingEntityFields[this.newEntryEntityId] = this.trackingEntityFields[this.newEntryEntityId] || {};
+            this.trackingEntityFields[this.newEntryEntityId]["field_id_new_entry"] = "entityid";
         }
 
-        this.renderHtmlAsync();
+        this.configChangedApplied = false;
+        this.reloadUI();
     }
 
     updated(changedProperties) {
-        console.debug("properties updated: " + [...changedProperties].map(([k, v]) => `'${k}'=> '${v}'`).join(", "));
-
         if (changedProperties.has('popup')) {
             let _overlay = this.shadowRoot.querySelector('.overlay');
             let _popup = this.shadowRoot.querySelector('.popup');
@@ -218,7 +238,7 @@ class WaterParamStatsCard extends LitElement {
             }
 
             if (this.hasTrackingEntityChanged()) {
-                this.renderHtmlAsync();
+                this.reloadUI();
             }
         }
     }
@@ -228,10 +248,10 @@ class WaterParamStatsCard extends LitElement {
             return false;
 
         let _stateChanged = false;
-        for (var entity in this.trackingEntities) {
-            const jstate = JSON.stringify(this.hass.states[entity]);
-            if (this.trackingEntities[entity] != jstate) {
-                this.trackingEntities[entity] = jstate;
+        for (var entityid in this.trackingEntities) {
+            const jstate = JSON.stringify(this.hass.states[entityid]);
+            if (this.trackingEntities[entityid] != jstate) {
+                this.trackingEntities[entityid] = jstate;
                 _stateChanged = true;
             }
         }
@@ -248,7 +268,7 @@ class WaterParamStatsCard extends LitElement {
         this.popup = false;
     }
 
-    isTemplate(value) {
+    isTemplateValue(value) {
         return value?.includes("{{");
     }
 
@@ -281,13 +301,13 @@ class WaterParamStatsCard extends LitElement {
             const _step = this.hass.states[this.newEntryEntityId].attributes.step || 1;
             const _min = this.hass.states[this.newEntryEntityId].attributes.min || 0;
             const _max = this.hass.states[this.newEntryEntityId].attributes.max || 100;
-            
+
             return html`<tr>
                            <td colspan=2 style='text-align: right;'>
                              <button class="flat-button" @click="${this.openPopup}">${_buttonText}</button>
                              <div class="overlay"></div>
                              <ha-card class="popup">
-                               <numeric-textbox uom="${_uom}" label="${_label}:" min="${_min}" max="${_max}" value="${this.newEntryCurrentValue}" step="${_step}" @value-changed="${this.newEntryValueChanged}"></numeric-textbox>
+                               <numeric-textbox id="field_id_new_entry" uom="${_uom}" label="${_label}:" min="${_min}" max="${_max}" value="${this.newEntryCurrentValue}" step="${_step}" @value-changed="${this.newEntryValueChanged}"></numeric-textbox>
                                <div class="button-container">
                                  <button class="flat-button flat-button-secondary" @click="${this.cancelPopup}">${_cancelText}</button>
                                  <button class="flat-button" @click="${this.submitReading}">${_submitText}</button>
@@ -326,6 +346,60 @@ class WaterParamStatsCard extends LitElement {
         }
     }
 
+    async reloadFieldValues() {
+        for (var fieldValue in this.trackingEntityFields) {
+            for (var fieldID in this.trackingEntityFields[fieldValue]) {
+                // Find a span with the id of fieldID and update its value
+                const _element = this.shadowRoot.querySelector('#' + fieldID);
+                if (_element != undefined) {
+                    if (this.trackingEntityFields[fieldValue][fieldID] == "template") {
+                        _element.innerHTML = await this.getFieldValue(fieldValue);
+                    }
+                    else if (this.trackingEntityFields[fieldValue][fieldID] == "entityid") {
+                        if (fieldID == "field_id_new_entry") {
+                            this.newEntryCurrentValue = parseFloat(this.hass.states[fieldValue].state);
+                            this.newEntryOriginalValue = this.newEntryCurrentValue;
+
+                            _element.requestUpdate();
+                        }
+                        else { 
+                            _element.innerHTML = this.hass.states[fieldValue].state;
+                        }
+					}
+                }
+            }
+        }
+    }
+
+    async getFieldValue(fieldValue) {
+        this._value = fieldValue;
+        if (this.isTemplateValue(this._value)) {
+            this._ready = false;
+
+            await this.hass.connection.subscribeMessage((msg) => {
+                this._value = msg.result;
+                this._ready = true;
+            }, { type: "render_template", template: this._value });
+
+            await this.waitUntil(() => this._ready === true);
+        }
+
+        return this._value;
+    }
+
+    async reloadUI() {
+        if (!this.configChangedApplied) {
+            const _hassAvailable = this.hass !== undefined;
+            await this.renderHtmlAsync();
+            if (_hassAvailable) {
+                this.configChangedApplied = true;
+            }
+        }
+        else {
+            await this.reloadFieldValues();
+        }
+    }
+
     async getHtmlAsync() {
         const _title = this.config.title || "Water Parameter";
         let _statsHtml = html``;
@@ -335,24 +409,12 @@ class WaterParamStatsCard extends LitElement {
             for (var idx = 0; idx < this.config.stats.length; idx++) {
                 const stat = this.config.stats[idx];
                 const _readonly = stat.readonly || false;
-
-                this._value = stat.value;
-
-                if (this.isTemplate(this._value)) {
-                    this.ready = false;
-
-                    await this.hass.connection.subscribeMessage((msg) => {
-                        this._value = msg.result;
-                        this.ready = true;
-                    }, { type: "render_template", template: this._value });
-
-                    await this.waitUntil(() => this.ready === true);
-                }
-
+                const _value = await this.getFieldValue(stat.value);
+                
                 _statsHtml = html`${_statsHtml}
                         <tr>
-                           <td class='td-field ${_readonly ? `readonly` : ``}'>${stat.title}</td>
-                           <td class='td-value ${_readonly ? `readonly` : ``}'>${this._value}</td>
+                           <td class='td-field ${_readonly ? `readonly` : ``}'><span>${stat.title}</span></td>
+                           <td class='td-value ${_readonly ? `readonly` : ``}'><span id="field_${idx}">${_value}</span></td>
                         </tr>`;
             }
         }
@@ -411,14 +473,13 @@ class WaterParamStatsCard extends LitElement {
         this.html = html`<span>Loading...</span>`
 
         const validation = this.validateConfig();
-
         if (!validation.is_valid)
             this.html = this.getErrorHtml(validation.error);
         else
             this.html = await this.getHtmlAsync();
 
-        this.requestUpdate();
-        this.requestUpdate('value', this.newEntryOriginalValue);
+        //this.requestUpdate();
+        //this.requestUpdate('value', this.newEntryOriginalValue);
     }
 
     render() { return this.html; }
