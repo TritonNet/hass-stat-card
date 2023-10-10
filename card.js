@@ -348,19 +348,20 @@ class WaterParamStatsCard extends LitElement {
 
     async reloadFieldValues() {
         for (var fieldValue in this.trackingEntityFields) {
-            for (var fieldID in this.trackingEntityFields[fieldValue]) {
+            const fieldIds = this.trackingEntityFields[fieldValue];
+            for (var fieldID in fieldIds) {
+                const field = fieldIds[fieldID];
+
                 // Find a span with the id of fieldID and update its value
                 const _element = this.shadowRoot.querySelector('#' + fieldID);
                 if (_element != undefined) {
-                    if (this.trackingEntityFields[fieldValue][fieldID] == "template") {
+                    if (field == "template") {
                         _element.innerHTML = await this.getFieldValue(fieldValue);
                     }
-                    else if (this.trackingEntityFields[fieldValue][fieldID] == "entityid") {
+                    else if (field == "entityid") {
                         if (fieldID == "field_id_new_entry") {
-                            this.newEntryCurrentValue = parseFloat(this.hass.states[fieldValue].state);
-                            this.newEntryOriginalValue = this.newEntryCurrentValue;
-
-                            _element.requestUpdate();
+                            this.newEntryOriginalValue = parseFloat(this.hass.states[fieldValue].state);
+                            _element.set(this.newEntryOriginalValue);
                         }
                         else { 
                             _element.innerHTML = this.hass.states[fieldValue].state;
