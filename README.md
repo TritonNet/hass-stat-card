@@ -7,9 +7,9 @@ Home Assistant - Water Parameter Stat Card
 
 ![GitHub](https://img.shields.io/github/license/tritonnet/hass-water-param-stat-card)
 
-![Card View](./docs/images/card_view.png)
+![Card View](https://github.com/TritonNet/hass-water-param-stat-card/blob/master/docs/images/card_view.PNG?raw=true)
 
-![Card View](./docs/images/card_new_entry_view.png)
+![Card View](https://github.com/TritonNet/hass-water-param-stat-card/blob/master/docs/images/card_new_entry_view.PNG?raw=true)
 
 Configuration Example:
 ```yaml
@@ -97,7 +97,7 @@ Link `water-param-stat-card` inside you `ui-lovelace.yaml`.
 ```yaml
 resources:
   - url: /local/card.js?v=1.4
-	type: module
+    type: module
 ```
 
 ### Step 3
@@ -105,32 +105,32 @@ resources:
 Add a custom element in your `ui-lovelace.yaml`
 
 ```yaml
-	  - type: custom:water-param-stat-card
-		title: Calcium
-		stats:
-		  - title: Last Reading
-			value: >-
-			  {{ states('input_number.calcium_reading') | string + ' ' +
-			  state_attr('input_number.calcium_reading', 'unit_of_measurement') | string
-			  }}
-		  - title: Last Reading on
-			value: >-
-			  {{ ((as_timestamp(now()) -
-			  state_attr('input_datetime.calcium_last_read','timestamp')) / 86400) | int
-			  }} days ago
-		  - title: Max
-			value: 580ppt
-			readonly: true
-		  - title: Min
-			value: 520ppt
-			readonly: true
-		charts:
-		  guage: >-
-			https://grafana.tritonnet.nz/d-solo/b126f26e-5e73-42c3-80d4-1bd4a342c93d/main-aquarium-calcium-reading?orgId=1&panelId=2
-		  timeseries: >-
-			https://grafana.tritonnet.nz/d-solo/b126f26e-5e73-42c3-80d4-1bd4a342c93d/main-aquarium-calcium-reading?orgId=1&panelId=1
-		new_entry:
-		  enabled: true
-		  label: New Calcium Reading
-		  entity: input_number.calcium_reading
+type: custom:water-param-stat-card
+title: Calcium
+stats:
+  - title: Last Reading
+    value: >-
+      {{ states('input_number.calcium_reading') | string + ' ' +
+      state_attr('input_number.calcium_reading', 'unit_of_measurement') | string
+      }}
+  - title: Last Reading on
+    value: >-
+      {{ ((as_timestamp(now()) -
+      state_attr('input_datetime.calcium_last_read','timestamp')) / 86400) | int
+      }} days ago
+  - title: Max
+    value: 580ppt
+    readonly: true
+  - title: Min
+    value: 520ppt
+    readonly: true
+charts:
+  guage: >-
+    https://grafana.tritonnet.nz/d-solo/b126f26e-5e73-42c3-80d4-1bd4a342c93d/main-aquarium-calcium-reading?orgId=1&panelId=2
+  timeseries: >-
+    https://grafana.tritonnet.nz/d-solo/b126f26e-5e73-42c3-80d4-1bd4a342c93d/main-aquarium-calcium-reading?orgId=1&panelId=1
+new_entry:
+  enabled: true
+  label: New Calcium Reading
+  entity: input_number.calcium_reading
 ```
