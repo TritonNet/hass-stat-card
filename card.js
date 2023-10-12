@@ -55,13 +55,15 @@ class NumbericTextBox extends LitElement {
 
     render() {
         return html`
-                  <div class="input-row">
-                     <label for="value">${this.label}</label>
-                     <button class="control-button" @click="${this.decrement}"><ha-icon icon="mdi:minus"></ha-icon></button>
-                     <input type="number" class="value-input" step="${this.step}" .value='${this.value}' @input="${this.onChange}"/>
-                     <button class="control-button" @click="${this.increment}"><ha-icon icon="mdi:plus"></ha-icon></button>
-                     <span id="unit">${this.uom}</span>
-                  </div>`;
+               <div class="input-row">
+                  <label for="value">${this.label}</label>
+                  <div class="input-controls">
+                      <button class="control-button" @click="${this.decrement}"><ha-icon icon="mdi:minus"></ha-icon></button>
+                      <input type="number" class="value-input" step="${this.step}" .value='${this.value}' @input="${this.onChange}"/>
+                      <button class="control-button" @click="${this.increment}"><ha-icon icon="mdi:plus"></ha-icon></button>
+                      <span id="unit">${this.uom}</span>
+                  </div>
+               </div>`;
     }
 
     static get styles() {
@@ -80,11 +82,18 @@ class NumbericTextBox extends LitElement {
            }
 
            .input-row {
-                 display: flex;
-                 justify-content: flex-end;
-                 align-items: center;
-                 margin-bottom: 20px;
-                 margin-left: 35px;
+               display: flex;
+               justify-content: flex-end;
+               align-items: center;
+               margin-bottom: 20px;
+               margin-left: 35px;
+               flex-direction: row;
+           }
+           
+           .input-controls {
+               display: flex;
+               flex-direction: row;
+               align-items: center;
            }
            
            .input-row label {
@@ -93,6 +102,15 @@ class NumbericTextBox extends LitElement {
            
            .input-row span {
                margin-left: 10px;
+           }
+           
+           @media (max-width: 500px) {
+               .input-row {
+                   flex-direction: column;
+               }
+               .input-row label {
+                   margin-bottom: 10px;
+                }
            }
 
            .value-input {
@@ -512,7 +530,7 @@ class WaterParamStatsCard extends LitElement {
 
           .chart-container {
             width: 100%; 
-            height: 250px; 
+            height: auto; 
             display: flex; 
             flex-wrap:nowrap;
           }
@@ -524,13 +542,20 @@ class WaterParamStatsCard extends LitElement {
           }
 
           .chart-frame-first {
-            flex: 2; 
             width: 40%;
           }
 
           .chart-frame-second {
-            flex: 3; 
             width: 60%;
+          }
+
+          @media (max-width: 400px) {
+            .chart-container {
+              flex-direction: column;
+            }
+            .chart-frame {
+              width: 100%;
+            }
           }
 
           .button-container {
