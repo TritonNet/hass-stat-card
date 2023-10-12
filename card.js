@@ -458,7 +458,7 @@ class WaterParamStatsCard extends LitElement {
         return html`
            <ha-card header="${_title}">
              <div class="card-content">
-               <table style='width: 100%'>
+               <table>
                  ${_statsHtml}
                  ${_chartsHtml}
                  ${this.getPopupWindow()}                 
@@ -480,9 +480,6 @@ class WaterParamStatsCard extends LitElement {
             this.html = this.getErrorHtml(validation.error);
         else
             this.html = await this.getHtmlAsync();
-
-        //this.requestUpdate();
-        //this.requestUpdate('value', this.newEntryOriginalValue);
     }
 
     render() { return this.html; }
@@ -496,19 +493,21 @@ class WaterParamStatsCard extends LitElement {
           }
 
           table {
-            width: 100%;
+            width: 100%,
+            table-layout: fixed;
             border-collapse: collapse;
           }
-          .td-field {            
-            width: 80%;
+          .td-field {
+            width: 100%;
+            flex: 1;
           }
 
           .readonly {
             color: #666666;
           }
 
-          .td-value {            
-            width: 20%;
+          .td-value { 
+              white-space: nowrap;
           }
 
           .chart-container {
