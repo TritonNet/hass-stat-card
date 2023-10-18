@@ -50,7 +50,7 @@ class NumbericTextBox extends LitElement {
     }
 
     notifyValueChanged() {
-        this.dispatchEvent(new CustomEvent('value-changed', {
+        this.dispatchEvent(new CustomEvent('value-changed', { 
             detail: this.value
         }));
     }
@@ -308,8 +308,9 @@ class WaterParamStatsCard extends LitElement {
         this.popup = false;
     }
 
-    newEntryValueChanged(e) {
+    newEntryValueChanged(e) {        
         this.newEntryCurrentValue = e.detail;
+        console.debug("New entity current val updated to: " + e.detail + " newEntryCurrentValue: " + this.newEntryCurrentValue);
     }
 
     getPopupWindow() {
