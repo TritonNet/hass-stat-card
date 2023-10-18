@@ -255,6 +255,7 @@ class WaterParamStatsCard extends LitElement {
             if (this.newEntryEnabled) {
                 this.newEntryCurrentValue = parseFloat(this.hass.states[this.newEntryEntityId].state)
                 this.newEntryOriginalValue = this.newEntryCurrentValue;
+                console.debug("updated(changedProperties): this.newEntryOriginalValue: " + this.newEntryOriginalValue + " | this.newEntryCurrentValue: " + this.newEntryCurrentValue);
             }
 
             if (this.hasTrackingEntityChanged()) {
@@ -284,6 +285,7 @@ class WaterParamStatsCard extends LitElement {
     }
 
     cancelPopup() {
+        console.debug("this.newEntryCurrentValue: " + this.newEntryCurrentValue + " | this.newEntryOriginalValue: " + this.newEntryOriginalValue);
         this.newEntryCurrentValue = this.newEntryOriginalValue;
         this.popup = false;
     }
