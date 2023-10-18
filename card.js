@@ -35,6 +35,8 @@ class NumbericTextBox extends LitElement {
     onChange(e) { this.set(e.target.value); }
 
     set(val) {
+        console.debug("setting new val: " + val);
+
         this.value = this.round(val, this.numDecimals());
         const _max = parseFloat(this.max);
         const _min = parseFloat(this.min);
@@ -292,10 +294,14 @@ class WaterParamStatsCard extends LitElement {
 
     async submitReading() {
         try {
+            console.debug("submitting '" + this.newEntryCurrentValue + "' as a new value for '" + this.newEntryEntityId + "'");
+
             await this.hass.callService('input_number', 'set_value', {
                 entity_id: this.newEntryEntityId,
                 value: this.newEntryCurrentValue
             });
+            console.debug("submission completed.");
+
         } catch (error) {
             console.error('Error calling service:', error);
         }
