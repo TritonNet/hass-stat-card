@@ -35,8 +35,6 @@ class NumbericTextBox extends LitElement {
     onChange(e) { this.set(e.target.value); }
 
     set(val) {
-        console.debug("setting new val: " + val);
-
         this.value = this.round(val, this.numDecimals());
         const _max = parseFloat(this.max);
         const _min = parseFloat(this.min);
@@ -172,8 +170,9 @@ class WaterParamStatsCard extends LitElement {
             popup: false,
             newEntryEnabled: false,
             newEntryEntityId: undefined,
-            newEntryOriginalValue: undefined,
-            newEntryCurrentValue: undefined,
+            newEntryServerValue: undefined,
+            newEntryLocalValue: undefined,
+            newEntryLocalValueUpdated: false,
             html: undefined,
             trackingEntities: undefined,
             trackingEntityFields: undefined,
@@ -189,6 +188,7 @@ class WaterParamStatsCard extends LitElement {
         this.trackingEntities = {};
         this.trackingEntityFields = {};
         this.configChangedApplied = false;
+        this.newEntryLocalValueUpdated = false;
     }
 
 
@@ -253,9 +253,11 @@ class WaterParamStatsCard extends LitElement {
         else if (changedProperties.has('hass')) {
 
             if (this.newEntryEnabled) {
-                this.newEntryCurrentValue = parseFloat(this.hass.states[this.newEntryEntityId].state)
-                this.newEntryOriginalValue = this.newEntryCurrentValue;
-                console.debug("updated(changedProperties): this.newEntryOriginalValue: " + this.newEntryOriginalValue + " | this.newEntryCurrentValue: " + this.newEntryCurrentValue);
+                this.newEntryServerValue = parseFloat(this.hass.states[this.newEntryEntityId].state);
+
+                if (!this.newEntryLocalValueUpdated) {
+                    this.newEntryLocalValue = this.newEntryServerValue;
+                }
             }
 
             if (this.hasTrackingEntityChanged()) {
@@ -285,8 +287,8 @@ class WaterParamStatsCard extends LitElement {
     }
 
     cancelPopup() {
-        console.debug("this.newEntryCurrentValue: " + this.newEntryCurrentValue + " | this.newEntryOriginalValue: " + this.newEntryOriginalValue);
-        this.newEntryCurrentValue = this.newEntryOriginalValue;
+        this.newEntryLocalValueUpdated = false;
+        this.newEntryLocalValue = this.newEntryServerValue;
         this.popup = false;
     }
 
@@ -295,24 +297,25 @@ class WaterParamStatsCard extends LitElement {
     }
 
     async submitReading() {
-        try {
-            console.debug("submitting '" + this.newEntryCurrentValue + "' as a new value for '" + this.newEntryEntityId + "'");
+        if (this.newEntryLocalValueUpdated) {
+            try {
+                await this.hass.callService('input_number', 'set_value', {
+                    entity_id: this.newEntryEntityId,
+                    value: this.newEntryLocalValue
+                });
+            } catch (error) {
+                console.error('Error calling service:', error);
+            }
 
-            await this.hass.callService('input_number', 'set_value', {
-                entity_id: this.newEntryEntityId,
-                value: this.newEntryCurrentValue
-            });
-            console.debug("submission completed.");
-
-        } catch (error) {
-            console.error('Error calling service:', error);
+            this.newEntryLocalValueUpdated = false;
+            this.newEntryLocalValue = this.newEntryServerValue;
         }
         this.popup = false;
     }
 
-    newEntryValueChanged(e) {        
-        this.newEntryCurrentValue = e.detail;
-        console.debug("New entity current val updated to: " + e.detail + " newEntryCurrentValue: " + this.newEntryCurrentValue);
+    newEntryValueChanged(e) {
+        this.newEntryLocalValueUpdated = true;
+        this.newEntryLocalValue = e.detail;
     }
 
     getPopupWindow() {
@@ -334,7 +337,7 @@ class WaterParamStatsCard extends LitElement {
                              <button class="flat-button" @click="${this.openPopup}">${_buttonText}</button>
                              <div class="overlay"></div>
                              <ha-card class="popup">
-                               <numeric-textbox id="field_id_new_entry" uom="${_uom}" label="${_label}:" min="${_min}" max="${_max}" value="${this.newEntryCurrentValue}" step="${_step}" @value-changed="${this.newEntryValueChanged}"></numeric-textbox>
+                               <numeric-textbox id="field_id_new_entry" uom="${_uom}" label="${_label}:" min="${_min}" max="${_max}" value="${this.newEntryLocalValue}" step="${_step}" @value-changed="${this.newEntryValueChanged}"></numeric-textbox>
                                <div class="button-container">
                                  <button class="flat-button flat-button-secondary" @click="${this.cancelPopup}">${_cancelText}</button>
                                  <button class="flat-button" @click="${this.submitReading}">${_submitText}</button>
@@ -389,8 +392,8 @@ class WaterParamStatsCard extends LitElement {
                         break;
                     case "entityid":
                         if (fieldID == "field_id_new_entry") {
-                            this.newEntryOriginalValue = parseFloat(this.hass.states[fieldValue].state);
-                            _element.set(this.newEntryOriginalValue);
+                            this.newEntryServerValue = parseFloat(this.hass.states[fieldValue].state);
+                            _element.set(this.newEntryServerValue);
                         }
                         else {
                             _element.innerHTML = this.hass.states[fieldValue].state;
