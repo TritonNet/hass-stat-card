@@ -434,7 +434,6 @@ class WaterParamStatsCard extends LitElement {
     }
 
     async getHtmlAsync() {
-        const _title = this.config.title || "Water Parameter";
         let _statsHtml = html``;
         
         if (this.config.stats != undefined)
@@ -486,7 +485,7 @@ class WaterParamStatsCard extends LitElement {
         }
 
         return html`
-           <ha-card header="${_title}">
+           <ha-card header="${this.config.title}">
              <div class="card-content">
                <table>
                  ${_statsHtml}
@@ -503,8 +502,8 @@ class WaterParamStatsCard extends LitElement {
     }
 
     async renderHtmlAsync() {
-        this.html = html`<span>Loading...</span>`
-
+        this.html = html`<table><tr><td><span>Loading...</span></td></tr></table>`
+        
         const validation = this.validateConfig();
         if (!validation.is_valid)
             this.html = this.getErrorHtml(validation.error);
