@@ -211,7 +211,15 @@ class WaterParamStatsCard extends LitElement {
 
         if (this.config.stats != undefined) {
             for (var idx = 0; idx < this.config.stats.length; idx++) {
+                if (this.config.stats[idx] == undefined) {
+                    continue;
+                }
+
                 const fieldValue = this.config.stats[idx].value;
+                if (fieldValue == undefined) {
+                    continue;
+                }
+
                 if (this.isTemplateValue(fieldValue)) {
                     const entities = this.extractEntities(fieldValue);
                     for (var n = 0; n < entities.length; n++) {
@@ -433,45 +441,68 @@ class WaterParamStatsCard extends LitElement {
         }
     }
 
-    async getHtmlAsync() {
+    async getStatsHtmlAsync() {
         let _statsHtml = html``;
-        
-        if (this.config.stats != undefined)
-        {
-            for (var idx = 0; idx < this.config.stats.length; idx++) {
-                const stat = this.config.stats[idx];
-                const _readonly = stat.readonly || false;
-                const _value = await this.getFieldValue(stat.value);
-                
-                _statsHtml = html`${_statsHtml}
-                        <tr>
-                           <td class='td-field ${_readonly ? `readonly` : ``}'><span>${stat.title}</span></td>
-                           <td class='td-value ${_readonly ? `readonly` : ``}'><span id="field_${idx}">${_value}</span></td>
-                        </tr>`;
-            }
+        if (this.config.stats == undefined) {
+            return _statsHtml;
         }
 
+        for (var idx = 0; idx < this.config.stats.length; idx++) {
+            const stat = this.config.stats[idx];
+            if (stat == undefined) {
+                continue;
+            }
+
+            const _type = stat.type || "value";
+            switch (_type) {
+                case "value":
+                    const _readonly = stat.readonly || false;
+                    const _value = await this.getFieldValue(stat.value);
+                    _statsHtml = html`${_statsHtml}
+                                     <tr>
+                                        <td class='td-field ${_readonly ? `readonly` : ``}'><span>${stat.title}</span></td>
+                                        <td class='td-value ${_readonly ? `readonly` : ``}'><span id="field_${idx}">${_value}</span></td>
+                                     </tr>`;
+                    break;
+                case "header":
+                    _statsHtml = html`${_statsHtml}
+                                     <tr>
+                                        <td class='td-header' colspan=2><span>${stat.title}</span></td>
+                                     </tr>`;
+                    break;
+                default:
+                    continue;
+            } // switch
+        } // for
+
+        return _statsHtml;
+    }
+
+    async getChartHtmlAsync() {
         let _chartsHtml = html``;
-        if (this.config.charts != undefined) {
-            let hasChart = false;
-            let _guageChartHtml = html``;
-            if (this.config.charts.guage != undefined) {
-                _guageChartHtml = html`
+        if (this.config.charts == undefined) {
+            return _chartsHtml;
+        }
+
+        let hasChart = false;
+        let _guageChartHtml = html``;
+        if (this.config.charts.guage != undefined) {
+            _guageChartHtml = html`
                   <iframe class="chart-frame chart-frame-first" src="${this.config.charts.guage}"></iframe>
                 `;
-                hasChart = true;
-            }
+            hasChart = true;
+        }
 
-            let _timeSeriesChartHtml = html``;
-            if (this.config.charts.timeseries != undefined) {
-                _timeSeriesChartHtml = html`
+        let _timeSeriesChartHtml = html``;
+        if (this.config.charts.timeseries != undefined) {
+            _timeSeriesChartHtml = html`
                   <iframe class="chart-frame chart-frame-second" src="${this.config.charts.timeseries}"></iframe>
                 `;
-                hasChart = true;
-            }
+            hasChart = true;
+        }
 
-            if (hasChart) {
-                _chartsHtml = html`
+        if (hasChart) {
+            _chartsHtml = html`
                 <tr>
                    <td colspan=2>
                      <div class='chart-container'>
@@ -481,9 +512,15 @@ class WaterParamStatsCard extends LitElement {
                    </td>
                  </tr>
                 `;
-            }
         }
 
+        return _chartsHtml;
+    }
+
+    async getHtmlAsync() {
+        const _statsHtml = await this.getStatsHtmlAsync();
+        const _chartsHtml = await this.getChartHtmlAsync();
+        
         return html`
            <ha-card header="${this.config.title}">
              <div class="card-content">
@@ -529,6 +566,10 @@ class WaterParamStatsCard extends LitElement {
           .td-field {
             width: 100%;
             flex: 1;
+          }
+
+          .td-header {
+            background-color: #383a3b;
           }
 
           .readonly {
