@@ -1,0 +1,122 @@
+.input-container {
+    display: flex;
+    align-items: center;
+}
+
+table {
+    width: 100%, table-layout: fixed;
+    border-collapse: collapse;
+}
+
+.td-field {
+    width: 100%;
+    flex: 1;
+}
+
+.td-header {
+    background-color: #383a3b;
+}
+
+.readonly {
+    color: #666666;
+}
+
+.td-value {
+    white-space: nowrap;
+}
+
+.chart-container {
+    width: 100%;
+    height: auto;
+    display: flex;
+    flex-wrap: nowrap;
+}
+
+.chart-frame {
+    border: none;
+    margin: 0;
+    padding: 0;
+}
+
+.chart-frame-first {
+    width: 40%;
+}
+
+.chart-frame-second {
+    width: 60%;
+}
+
+@media (max-width: 400px) {
+    .chart-container {
+        flex-direction: column;
+    }
+
+    .chart-frame {
+        width: 100%;
+    }
+}
+
+.button-container {
+    display: flex;
+    justify-content: flex-end;
+}
+
+    .button-container button {
+        margin-left: 10px;
+    }
+
+.flat-button {
+    display: inline-block;
+    background-color: #3498db;
+    color: #fff;
+    border: 1px solid #3498db;
+    padding: 5px 10px;
+    text-align: center;
+    text-decoration: none;
+    font-size: 12px;
+    border-radius: 0px;
+    transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+    margin: 5px 0px 0px 0px;
+    cursor: pointer;
+}
+
+.flat-button-secondary {
+    background-color: #aaa69d;
+    border: 1px solid #d1ccc0;
+}
+
+.flat-button:hover {
+    background-color: #2980b9;
+    border-color: #2980b9;
+    color: #fff;
+}
+
+.flat-button-secondary:hover {
+    background-color: #84817a;
+    border: 1px solid #84817a;
+}
+
+.popup {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 25px 25px 25px 0px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+    z-index: 1001;
+}
+
+.overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    backdrop-filter: blur(5px);
+    pointer-events: none;
+}

@@ -1,33 +1,26 @@
+// Download latest from https://cdn.jsdelivr.net/gh/lit/dist@3.1.4/core/lit-core.min.js
 import { LitElement, html, css, } from "./lit/3.1.4/core/lit-core.min.js";
 import './numeric-textbox.js';
 
-class WaterParamStatsCard extends LitElement {
+const LineType = Object.freeze({
+    HEADER: 'header',
+    VALUE: 'value'
+});
 
-    /*
-      trackingEntities = {
-         entity_id: "json state of the entity"
-      }
-
-      trackingEntityFields = {
-        "field_value"
-      }
-    */
+const ValueType = Object.freeze({
+    TEMPLATE: 'template',
+    FIXED: 'fixed'
+});
+class StatsCard extends LitElement {
 
     static get properties() {
         return {
             hass: undefined,
             config: undefined,
-            stateObj: undefined,
+            lines: [],
+            entities: [],
             popup: false,
-            newEntryEnabled: false,
-            newEntryEntityId: undefined,
-            newEntryServerValue: undefined,
-            newEntryLocalValue: undefined,
-            newEntryLocalValueUpdated: false,
-            html: undefined,
-            trackingEntities: undefined,
-            trackingEntityFields: undefined,
-            configChangedApplied: false
+            newentry: undefined
         };
     }
 
@@ -35,178 +28,90 @@ class WaterParamStatsCard extends LitElement {
         // always call super() first
         super();
 
-        this.newEntry = {};
-        this.trackingEntities = {};
-        this.trackingEntityFields = {};
-        this.configChangedApplied = false;
-        this.newEntryLocalValueUpdated = false;
+        this.lines = [];
+        this.entities = [];
+        this.newentry = { enabled: false };
     }
 
-
-    extractEntities(template) {
-        const regex = /(?:states|state_attr|is_state|is_state_attr)\(['"]([^'"]+)['"]/g;
-        const parameterNames = [];
-        let match;
-    
-        while ((match = regex.exec(template)) !== null) {
-            parameterNames.push(match[1]);
-        }
-    
-        return parameterNames;
-    }
-
-
-    // required
     setConfig(config) {
         this.config = config;
-
+        
+        let _lines = [];
+        let _entities = [];
         if (this.config.stats != undefined) {
             for (var idx = 0; idx < this.config.stats.length; idx++) {
                 if (this.config.stats[idx] == undefined) {
                     continue;
                 }
 
-                const fieldValue = this.config.stats[idx].value;
-                if (fieldValue == undefined) {
+                const _value = this.config.stats[idx].value;
+                if (_value === undefined) {
                     continue;
                 }
 
-                if (this.isTemplateValue(fieldValue)) {
-                    const entities = this.extractEntities(fieldValue);
-                    for (var n = 0; n < entities.length; n++) {
-                        const entityid = entities[n];
-                        this.trackingEntities[entityid] = this.trackingEntities[entityid];                        
-                    }
-                    this.trackingEntityFields[fieldValue] = this.trackingEntityFields[fieldValue] || {};
-                    this.trackingEntityFields[fieldValue]["field_" + idx] = "template";
+                const _isTemplate = this.isTemplateValue(_value);
+
+                let _value_current = "0";
+                const _value_type = _isTemplate ? ValueType.TEMPLATE : ValueType.FIXED;
+                if (_value_type == ValueType.FIXED) {
+                    _value_current = _value;
                 }
+                //else if (_value_type == ValueType.TEMPLATE) {
+                //    const entities = this.extractEntities(_value);
+                //    for (var idx = 0; idx < entities.length; idx++) {
+                //        if (!_entities.includes(entities[idx])) {
+                //            _entities.push(entities[idx]);
+                //        }
+                //    }
+                //}
+                
+                const line = {
+                    type: this.config.stats[idx].type || LineType.VALUE,
+                    title: this.config.stats[idx].title,
+                    value: {
+                        type : _value_type,
+                        config : _value,
+                        current : _value_current,
+                        subscription : undefined
+                    },
+                    readonly: this.config.stats[idx].readonly || false,
+                };
+                
+                _lines.push(line);
             }
+            this.entities = _entities;
+            this.lines = _lines;
         }
 
-        const _newEntry = this.config.new_entry;
-        this.newEntryEnabled = _newEntry?.enabled || false;
-        if (this.newEntryEnabled) {
-            this.newEntryEntityId = _newEntry.entity;
-            this.trackingEntities[this.newEntryEntityId] = this.trackingEntities[this.newEntryEntityId];
-            this.trackingEntityFields[this.newEntryEntityId] = this.trackingEntityFields[this.newEntryEntityId] || {};
-            this.trackingEntityFields[this.newEntryEntityId]["field_id_new_entry"] = "entityid";
+        if (this.config.new_entry != undefined) {
+            const _newentry = this.config.new_entry;
+            this.newentry = {
+                enabled: _newentry.enabled || false,
+                entity_id: _newentry.entity,
+                entity_last_changed: _newentry.entity_last_changed,
+                label: _newentry.label,
+                text_button : _newentry.button_text || "Record New Value",
+                text_submit : _newentry.submit_text || "Record New Value",
+                text_cancel : _newentry.cancel_text || "Cancel",
+                value: { updated: false }
+            };
         }
-
-        this.configChangedApplied = false;
-        this.reloadUI();
-    }
-
-    updated(changedProperties) {
-        if (changedProperties.has('popup')) {
-            let _overlay = this.shadowRoot.querySelector('.overlay');
-            let _popup = this.shadowRoot.querySelector('.popup');
-
-            let _display = this.popup ? 'block' : 'none';
-
-            if (_overlay != undefined)
-                _overlay.style.display = _display;
-
-            if (_popup != undefined)
-                _popup.style.display = _display;
-        }
-        else if (changedProperties.has('hass')) {
-
-            if (this.newEntryEnabled) {
-                this.newEntryServerValue = parseFloat(this.hass.states[this.newEntryEntityId].state);
-
-                if (!this.newEntryLocalValueUpdated) {
-                    this.newEntryLocalValue = this.newEntryServerValue;
-                }
-            }
-
-            if (this.hasTrackingEntityChanged()) {
-                this.reloadUI();
-            }
-        }
-    }
-
-    hasTrackingEntityChanged() {
-        if (this.trackingEntities === undefined)
-            return false;
-
-        let _stateChanged = false;
-        for (var entityid in this.trackingEntities) {
-            const jstate = JSON.stringify(this.hass.states[entityid]);
-            if (this.trackingEntities[entityid] != jstate) {
-                this.trackingEntities[entityid] = jstate;
-                _stateChanged = true;
-            }
-        }
-
-        return _stateChanged;
-    }
-
-    openPopup() {
-        this.popup = true;
-    }
-
-    cancelPopup() {
-        this.newEntryLocalValueUpdated = false;
-        this.newEntryLocalValue = this.newEntryServerValue;
-        this.popup = false;
     }
 
     isTemplateValue(value) {
         return value?.includes("{{");
     }
 
-    async submitReading() {
-        if (this.newEntryLocalValueUpdated) {
-            try {
-                await this.hass.callService('input_number', 'set_value', {
-                    entity_id: this.newEntryEntityId,
-                    value: this.newEntryLocalValue
-                });
-            } catch (error) {
-                console.error('Error calling service:', error);
-            }
+    extractEntities(template) {
+        const regex = /(?:states|state_attr|is_state|is_state_attr)\(['"]([^'"]+)['"]/g;
+        const parameterNames = [];
+        let match;
 
-            this.newEntryLocalValueUpdated = false;
-            this.newEntryLocalValue = this.newEntryServerValue;
-        }
-        this.popup = false;
-    }
-
-    newEntryValueChanged(e) {
-        this.newEntryLocalValueUpdated = true;
-        this.newEntryLocalValue = e.detail;
-    }
-
-    getPopupWindow() {
-        if (this.newEntryEnabled) {
-            const _newEntry = this.config.new_entry;
-
-            const _buttonText = _newEntry.button_text || "Record New Value"
-            const _submitText = _newEntry.submit_text || "Record New Value"
-            const _cancelText = _newEntry.cancel_text || "Cancel";
-            const _label = _newEntry.label || this.hass.states[this.newEntryEntityId].attributes.friendly_name;
-
-            const _uom = this.hass.states[this.newEntryEntityId].attributes.unit_of_measurement || "";
-            const _step = this.hass.states[this.newEntryEntityId].attributes.step || 1;
-            const _min = this.hass.states[this.newEntryEntityId].attributes.min || 0;
-            const _max = this.hass.states[this.newEntryEntityId].attributes.max || 100;
-
-            return html`<tr>
-                           <td colspan=2 style='text-align: right;'>
-                             <button class="flat-button" @click="${this.openPopup}">${_buttonText}</button>
-                             <div class="overlay"></div>
-                             <ha-card class="popup">
-                               <numeric-textbox id="field_id_new_entry" uom="${_uom}" label="${_label}:" min="${_min}" max="${_max}" value="${this.newEntryLocalValue}" step="${_step}" @value-changed="${this.newEntryValueChanged}"></numeric-textbox>
-                               <div class="button-container">
-                                 <button class="flat-button flat-button-secondary" @click="${this.cancelPopup}">${_cancelText}</button>
-                                 <button class="flat-button" @click="${this.submitReading}">${_submitText}</button>
-                               </div>
-                             </ha-card>
-                           </td>
-                        </tr>`;
+        while ((match = regex.exec(template)) !== null) {
+            parameterNames.push(match[1]);
         }
 
-        return html``;
+        return parameterNames;
     }
 
     validateConfig() {
@@ -229,107 +134,168 @@ class WaterParamStatsCard extends LitElement {
         return { is_valid: true };
     }
 
-    async waitUntil(condition, time = 100) {
-        while (!condition()) {
-            await new Promise((resolve) => setTimeout(resolve, time));
-        }
-    }
+    reloadlines() {
+        if (this.hass === undefined)
+            return false;
 
-    async reloadFieldValues() {
-        for (var fieldValue in this.trackingEntityFields) {
-            const fieldIds = this.trackingEntityFields[fieldValue];
-            for (var fieldID in fieldIds) {
-                const _element = this.shadowRoot.querySelector('#' + fieldID);
-                if (_element == undefined)
-                    continue;
-
-                const fieldType = fieldIds[fieldID];
-                // add a switch case below for the field type
-                switch (fieldType) {
-                    case "template":
-                        _element.innerHTML = await this.getFieldValue(fieldValue);
-                        break;
-                    case "entityid":
-                        if (fieldID == "field_id_new_entry") {
-                            this.newEntryServerValue = parseFloat(this.hass.states[fieldValue].state);
-                            _element.set(this.newEntryServerValue);
-                        }
-                        else {
-                            _element.innerHTML = this.hass.states[fieldValue].state;
-                        }
-                        break;
-				}
-            }
-        }
-    }
-
-    async getFieldValue(fieldValue) {
-        this._value = fieldValue;
-        if (this.isTemplateValue(this._value)) {
-            this._ready = false;
-
-            await this.hass.connection.subscribeMessage((msg) => {
-                this._value = msg.result;
-                this._ready = true;
-            }, { type: "render_template", template: this._value });
-
-            await this.waitUntil(() => this._ready === true);
-        }
-
-        return this._value;
-    }
-
-    async reloadUI() {
-        if (!this.configChangedApplied) {
-            const _hassAvailable = this.hass !== undefined;
-            await this.renderHtmlAsync();
-            if (_hassAvailable) {
-                this.configChangedApplied = true;
-            }
-        }
-        else {
-            await this.reloadFieldValues();
-        }
-    }
-
-    async getStatsHtmlAsync() {
-        let _statsHtml = html``;
-        if (this.config.stats == undefined) {
-            return _statsHtml;
-        }
-
-        for (var idx = 0; idx < this.config.stats.length; idx++) {
-            const stat = this.config.stats[idx];
-            if (stat == undefined) {
+        for (var idx = 0; idx < this.lines.length; idx++) {
+            const _line = this.lines[idx];
+            if (_line == undefined) {
                 continue;
             }
 
-            const _type = stat.type || "value";
-            switch (_type) {
-                case "value":
-                    const _readonly = stat.readonly || false;
-                    const _value = await this.getFieldValue(stat.value);
+            if (_line.value.type == ValueType.FIXED) {
+                continue;
+            }
+
+            if (_line.value.subscription != undefined) {
+                continue;
+            }
+
+            const _cb = (msg) => {
+                _line.value.current = msg.result;
+            }
+
+            const _msg = { type: "render_template", template: _line.value.config };
+
+            _line.value.subscription = this.hass.connection.subscribeMessage(_cb, _msg);
+        }
+
+        return true;
+    }
+
+    updated(changedProperties) {
+        if (changedProperties.has('popup')) {
+            let _overlay = this.shadowRoot.querySelector('.overlay');
+            let _popup = this.shadowRoot.querySelector('.popup');
+
+            let _display = this.popup ? 'block' : 'none';
+
+            if (_overlay != undefined)
+                _overlay.style.display = _display;
+
+            if (_popup != undefined)
+                _popup.style.display = _display;
+        }
+        else if (changedProperties.has('hass')) {
+
+            if (this.newentry.enabled) {
+                this.newentry.value.server = parseFloat(this.hass.states[this.newentry.entity_id].state);
+
+                if (!this.newentry.value.locally_changed) {
+                    this.newentry.value.local = this.newentry.value.server;
+                }
+            }
+
+            if(this.reloadlines())
+            {
+                this.requestUpdate();
+            }
+        }
+    }
+
+    getPopupWindow() {
+        if (this.newentry.enabled === false || this.hass === undefined) {
+            return html``;
+        }
+
+        const _entity_attr = this.hass.states[this.newentry.entity_id].attributes;
+
+        const _label = this.newentry.label || _entity_attr.friendly_name;
+
+        const _uom = _entity_attr.unit_of_measurement || "";
+        const _step = _entity_attr.step || 1;
+        const _min = _entity_attr.min || 0;
+        const _max = _entity_attr.max || 100;
+        console.log("this.newentry.value.local: " + this.newentry.value.local);
+        return html`<tr>
+                           <td colspan=2 style='text-align: right;'>
+                             <button class="flat-button" @click="${this.openPopup}">${this.newentry.text_button}</button>
+                             <div class="overlay"></div>
+                             <ha-card class="popup">
+                               <numeric-textbox id="field_id_new_entry" uom="${_uom}" label="${_label}:" min="${_min}" max="${_max}" value="${this.newentry.value.local}" step="${_step}" @value-changed="${this.newEntryValueChanged}"></numeric-textbox>
+                               <div class="button-container">
+                                 <button class="flat-button flat-button-secondary" @click="${this.cancelPopup}">${this.newentry.text_cancel}</button>
+                                 <button class="flat-button" @click="${this.submitReading}">${this.newentry.text_submit}</button>
+                               </div>
+                             </ha-card>
+                           </td>
+                        </tr>`;
+    }
+
+    newEntryValueChanged(e) {
+        this.newentry.value.locally_changed = true;
+        this.newentry.value.local = e.detail;
+    }
+
+    async submitReading() {
+        if (this.newentry.value.locally_changed) {
+            try {
+                await this.hass.callService('input_number', 'set_value', {
+                    entity_id: this.newentry.entity_id,
+                    value: this.newentry.value.local
+                });
+
+                if (this.newentry.entity_last_changed != undefined) {
+                    await this.hass.callService('input_datetime', 'set_datetime', {
+                        entity_id: this.newentry.entity_last_changed,
+                        datetime: new Date()
+                    });
+                }
+
+            } catch (error) {
+                console.error('Error calling service:', error);
+            }
+
+            this.newentry.value.locally_changed = false;
+            this.newentry.value.local = this.newentry.value.server;
+        }
+        this.popup = false;
+    }
+
+    openPopup() {
+        this.popup = true;
+    }
+
+    cancelPopup() {
+        this.popup = false;
+    }
+
+    getStatsHtml() {
+        let _statsHtml = html``;
+        if (this.lines == undefined) {
+            return _statsHtml;
+        }
+        
+        for (var idx = 0; idx < this.lines.length; idx++) {
+            const _line = this.lines[idx];
+            if (_line == undefined) {
+                continue;
+            }
+            
+            switch (_line.type) {
+                case LineType.VALUE:
                     _statsHtml = html`${_statsHtml}
                                      <tr>
-                                        <td class='td-field ${_readonly ? `readonly` : ``}'><span>${stat.title}</span></td>
-                                        <td class='td-value ${_readonly ? `readonly` : ``}'><span id="field_${idx}">${_value}</span></td>
+                                        <td class='td-field ${_line.readonly ? `readonly` : ``}'><span>${_line.title}</span></td>
+                                        <td class='td-value ${_line.readonly ? `readonly` : ``}'><span id="field_${idx}">${_line.value.current}</span></td>
                                      </tr>`;
                     break;
-                case "header":
+                case LineType.HEADER:
                     _statsHtml = html`${_statsHtml}
                                      <tr>
-                                        <td class='td-header' colspan=2><span>${stat.title}</span></td>
+                                        <td class='td-header' colspan=2><span>${_line.title}</span></td>
                                      </tr>`;
                     break;
                 default:
                     continue;
             } // switch
         } // for
-
+        
         return _statsHtml;
     }
 
-    async getChartHtmlAsync() {
+    getChartHtml() {
         let _chartsHtml = html``;
         if (this.config.charts == undefined) {
             return _chartsHtml;
@@ -368,9 +334,9 @@ class WaterParamStatsCard extends LitElement {
         return _chartsHtml;
     }
 
-    async getHtmlAsync() {
-        const _statsHtml = await this.getStatsHtmlAsync();
-        const _chartsHtml = await this.getChartHtmlAsync();
+    getHtml() {
+        const _statsHtml = this.getStatsHtml();
+        const _chartsHtml = this.getChartHtml();
         
         return html`
            <ha-card header="${this.config.title}">
@@ -389,21 +355,16 @@ class WaterParamStatsCard extends LitElement {
         return html`<ha-alert alert-type="error">${error}</ha-alert>`;
     }
 
-    async renderHtmlAsync() {
-        this.html = html`<table><tr><td><span>Loading...</span></td></tr></table>`
-        
-        const validation = this.validateConfig();
+    render() {
+        const validation = this.validateConfig();        
         if (!validation.is_valid)
-            this.html = this.getErrorHtml(validation.error);
+            return this.getErrorHtml(validation.error);
         else
-            this.html = await this.getHtmlAsync();
+            return this.getHtml();
     }
-
-    render() { return this.html; }
 
     static get styles() {
         return css`
-          
           .input-container {
             display: flex;
             align-items: center;
@@ -429,6 +390,7 @@ class WaterParamStatsCard extends LitElement {
 
           .td-value { 
               white-space: nowrap;
+              text-align: right;
           }
 
           .chart-container {
@@ -529,4 +491,4 @@ class WaterParamStatsCard extends LitElement {
     }
 }
 
-customElements.define('water-param-stat-card', WaterParamStatsCard);
+customElements.define('stats-card', StatsCard);
