@@ -208,7 +208,7 @@ class StatsCard extends LitElement {
         const _step = _entity_attr.step || 1;
         const _min = _entity_attr.min || 0;
         const _max = _entity_attr.max || 100;
-        console.log("this.newentry.value.local: " + this.newentry.value.local);
+        
         return html`<tr>
                            <td colspan=2 style='text-align: right;'>
                              <button class="flat-button" @click="${this.openPopup}">${this.newentry.text_button}</button>
