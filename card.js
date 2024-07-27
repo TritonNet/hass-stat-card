@@ -91,7 +91,7 @@ class StatsCard extends LitElement {
                 entity_last_changed: _newentry.entity_last_changed,
                 label: _newentry.label,
                 text_button : _newentry.button_text || "Record New Value",
-                text_submit : _newentry.submit_text || "Record New Value",
+                text_submit : _newentry.submit_text || "Submit",
                 text_cancel : _newentry.cancel_text || "Cancel",
                 value: { updated: false }
             };
@@ -426,6 +426,7 @@ class StatsCard extends LitElement {
           .button-container {
             display: flex;
             justify-content: flex-end;
+            gap: 10px;
           }
           
           .button-container button {
@@ -433,34 +434,28 @@ class StatsCard extends LitElement {
           }
 
           .flat-button {
-            display: inline-block;
-            background-color: #3498db;
-            color: #fff;
-            border: 1px solid #3498db;
-            padding: 5px 10px;
+            background-color: #007bff;
+            border: none;
+            color: #ffffff;
+            padding: 5px 15px;
             text-align: center;
             text-decoration: none;
-            font-size: 12px;
-            border-radius: 0px;
-            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
-            margin: 5px 0px 0px 0px;
+            display: inline-block;
+            border-radius: 5px;
             cursor: pointer;
+            margin-top: 20px;
           }
 
           .flat-button-secondary {
-            background-color: #aaa69d;
-            border: 1px solid #d1ccc0;
+            background-color: #6c757d;
           }
           
           .flat-button:hover {
-            background-color: #2980b9;
-            border-color: #2980b9;
-            color: #fff;
+            background-color: #0056b3;
           }
 
           .flat-button-secondary:hover {
-            background-color: #84817a;
-            border: 1px solid #84817a;
+            background-color: #5a6268;
           }
 
           .popup {
